@@ -1,0 +1,529 @@
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+
+    <meta charset="UTF-8" />
+
+
+    <meta title="viewport" content="width=device-width, initial-scale=1.0" />
+
+
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://getbootstrap.com/docs/5.3/assets/css/docs.css" rel="stylesheet">
+
+
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+
+
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bulma@0.8.0/css/bulma.min.css" />
+
+
+    <script defer src="https://use.fontawesome.com/releases/v6.4.0/js/all.js"></script>
+
+    <title>마이 페이보릿 무비 | 프론트-백엔드 연결 마지막 예제!</title>
+
+
+    <style>
+        .center {
+            text-align: center;
+        }
+
+        .sorter-box {
+            width: 500px;
+        }
+
+        .movie-list {
+            width: 500px;
+            margin: 20px auto 0 auto;
+        }
+
+        .movie-title {
+            display: inline-block;
+        }
+
+        .movie-title:hover {
+            text-decoration: underline;
+        }
+
+        .card {
+            margin-bottom: 15px;
+        }
+
+        .movie-date {
+            display: inline-block;
+        }
+    </style>
+
+
+    <script>
+        const Sort = {
+            BY_LIKES: "likes",
+            BY_VIEWERS: "viewers",
+            BY_DATE: "date",
+        };
+
+        let sortMode = Sort.BY_LIKES
+        let trashMode = false
+
+
+        $(document).ready(function () {
+
+            showMovie()
+
+
+            displaySorter()
+
+
+
+        });
+
+        function showMovie() {
+
+            $('#movie-box').empty()
+
+
+            if (trashMode == false) {
+                $.ajax({
+                    type: "GET",
+                    url: "/api/list",
+                    data: { 'sortMode': sortMode },
+                    success: function (response) {
+                        if (response['result'] != 'success') {
+                            alert(sortMode + ' 순으로 영화 목록 받아오기 실패!')
+                            return
+                        }
+
+                        let movies = response['movies_list']
+
+                        console.log(movies)
+                        addMovieCards(movies, false)
+
+                    },
+                })
+            } else {
+                $.ajax({
+                    type: "GET",
+                    url: "/api/list/trash",
+                    data: { 'sortMode': sortMode },
+                    success: function (response) {
+                        if (response['result'] != 'success') {
+                            alert(sortMode + ' 순으로 영화 목록 받아오기 실패!')
+                            return
+                        }
+
+                        let movies = response['movies_list']
+                        console.log(movies)
+                        addMovieCards(movies, true)
+                    },
+                })
+            }
+            button_trash()
+            showMemoList()
+        }
+
+        function addMovieCards(movies, trashMode) {
+
+            for (let i = 0; i < movies.length; i++) {
+                let movie = movies[i]
+
+
+                let id = movie['_id']
+                let title = movie['title']
+                let viewers = movie['viewers']
+                let viewer = (viewers.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ","))
+                let likes = movie['likes']
+                let img = movie['poster_url']
+                let year = movie['open_year']
+                let month = movie['open_month']
+                let date = movie['open_day']
+
+                let cardContentHtml = `
+                        <img src=${img} class="movie-poster"/>
+                        <span class="movie-title" id='title'><a href='https://search.naver.com/search.naver?query=${title}&tbm=isch'>${title}</a></span>
+                        <span class="icon"><i class="fas fa-thumbs-up movie-likes"></i>${likes}</span>
+                        <span class="movie-viewers">누적 관객수 : ${viewer}명</span>
+                        <span class="movie-date">개봉일 : ${year}년 ${month}월 ${date}일</span>
+                    `
+
+
+                let cardFooterHtml = ''
+
+                if (trashMode == false) {
+
+                    cardFooterHtml = `
+                            <a href="#" onclick="likeMovie('${title}')">
+                            위로!"
+                            </a>
+                            <a href="#" onclick="trashMovie('${title}')">
+                            휴지통으로
+                            </a>
+                            `
+
+                } else {
+
+                    cardFooterHtml = `
+                            <a href="#" onclick="restoreMovie('${title}')">
+                            복구하기
+                            </a>
+                            <a href="#" onclick="deleteMovie('${title}')">
+                            영구삭제
+                            </a>
+                        `
+
+                }
+                $('#movie-box').append(`
+                        <div class="card">
+                            ${cardContentHtml}
+                            ${cardFooterHtml}
+                        </div>
+                    `)
+            }
+        }
+        function button_trash() {
+            $('#diplay_switch').empty()
+            let buttonContentHtml = ''
+            if (trashMode == false) {
+                buttonContentHtml = `
+                    <a href="#" class="btn btn-primary" id="sorter-likes" onclick="displayTrashMode()">휴지통보기</a>
+                    `
+            } else (
+                buttonContentHtml = `
+                    <a href="#" class="btn btn-primary" id="sorter-viewers" onclick="showMoiveList()">목록으로돌아가기</a>
+                    `
+            )
+            $('#diplay_switch').append(`
+                        ${buttonContentHtml}
+                    `)
+        }
+        function showMemoList() {
+            $('#todo-list').empty();
+            $.ajax({
+                type: "GET",
+                url: "/api/memos",
+                data: {},
+                success: function (response) {
+                    if (response['result'] == 'success') {
+                        console.log(response)
+                        let memos = response['memo_list']
+                        for (let i = 0; i < memos.length; i++) {
+                            let id = memos[i]['_id']
+                            let title = memos[i]['title']
+                            let complete = memos[i]['complete']
+                            console.log(title)
+                            console.log(complete)
+                            if (complete == false) {
+                                // console.log(complete)
+                                // console.log(typeof(complete))
+                                $('#todo-list').append(`
+            <li class="list-group-item d-flex justify-content-between align-items-center" id='${id}'>
+                ${title}
+                <span>
+                    <button class="btn btn-success btn-sm mr-1" onclick="completeTodo('${title}')">완료</button>
+                    <button class="btn btn-secondary btn-sm mr-1" onclick="editTodo('${id}','${title}')">수정</button>
+                    <button class="btn btn-danger btn-sm" onclick="deleteTodo('${title}')">삭제</button>
+                </span>
+            </li>
+                    `)
+                            } else {
+                                // console.log(complete)
+                                // console.log(typeof(complete))
+                                $('#todo-list').append(`
+            <li class="list-group-item d-flex justify-content-between align-items-center" id='${title}'>
+                <del>${title}(완료)</del>
+            <span>
+                <button class="btn btn-danger btn-sm" onclick="deleteTodo('${title}')">삭제</button>
+            </span>
+            </li>
+    `);
+                            }
+                        }
+                    }
+                    else {
+                        alert('불러오기 실패')
+                    }
+                }
+            });
+
+        }
+
+        function likeMovie(title) {
+            console.log(title)
+            $.ajax({
+                type: "POST",
+                url: "/api/like",
+                data: { info_give: title },
+                success: function (response) {
+                    if (response['result'] == 'success') {
+
+                        alert('좋아요 완료!')
+
+                        showMovie()
+                    } else {
+                        alert('좋아요 실패ㅠㅠ')
+                    }
+                }
+            });
+        }
+        function restoreMovie(title) {
+            console.log(title)
+            $.ajax({
+                type: "POST",
+                url: "/api/restore",
+                data: { info_give: title },
+                success: function (response) {
+                    if (response['result'] == 'success') {
+
+                        alert('복구 완료!')
+
+                        showMovie()
+                    } else {
+                        alert('복구 실패ㅠㅠ')
+                    }
+                }
+            });
+        }
+
+        function trashMovie(title) {
+            $.ajax({
+                type: "POST",
+                url: "/api/trash",
+                data: { info_give: title },
+                success: function (response) {
+                    if (response['result'] == 'success') {
+
+                        alert('변경 완료!')
+
+                        showMovie()
+                    } else {
+                        alert('변경 실패ㅠㅠ')
+                    }
+                }
+            });
+        }
+
+
+
+        function deleteMovie(title) {
+            $.ajax({
+                type: "POST",
+                url: "/api/delete",
+                data: { info_give: title },
+                success: function (response) {
+                    if (response['result'] == 'success') {
+
+                        alert('비우기 완료!')
+                        displayTrashMode()
+
+                    } else {
+                        alert('비우기 실패ㅠㅠ')
+                    }
+                }
+            });
+        }
+
+
+        function changeSorter(newMode) {
+            if (sortMode == newMode) {
+                return
+            }
+
+            sortMode = newMode
+            displaySorter()
+            showMovie()
+        }
+
+
+        function displaySorter() {
+            document.getElementById("sorter-likes").classList.remove("active")
+            document.getElementById("sorter-viewers").classList.remove("active")
+            document.getElementById("sorter-date").classList.remove("active")
+        }
+
+        function displayTrashMode() {
+            trashMode = true
+            showMovie()
+
+        }
+        function showMoiveList() {
+            trashMode = false
+            showMovie()
+        }
+
+
+        function makeTodo() {
+            title = $('#todo-val').val();
+
+            $.ajax({
+                type: "POST",
+                url: "/api/memoAdd",
+                data: {
+                    info_give_title: title,
+                },
+                success: function (response) {
+                    if (response['result'] == 'success') {
+
+                        alert('추가 완료!')
+
+                        showMovie()
+                    } else {
+                        alert('추가 실패ㅠㅠ')
+                    }
+                }
+            });
+
+
+
+        }
+        function completeTodo(title) {
+            console.log(title)
+            $.ajax({
+                type: "POST",
+                url: "/api/complete",
+                data: { info_give: title },
+                success: function (response) {
+                    if (response['result'] == 'success') {
+
+                        alert('완료!')
+
+                        showMovie()
+                    } else {
+                        alert('완료 실패')
+                    }
+                }
+            });
+        }
+        function deleteTodo(title) {
+            console.log(title)
+            $.ajax({
+                type: "POST",
+                url: "/api/delete/memo",
+                data: { info_give: title },
+                success: function (response) {
+                    if (response['result'] == 'success') {
+
+                        alert('삭제 완료!')
+
+                        showMovie()
+                    } else {
+                        alert('삭제 실패')
+                    }
+                }
+            });
+        }
+
+        function editTodo(id,title) {
+            
+            console.log(title)
+            
+           $(`#${id}`).html(`
+        <form class="form-inline w-75" id='${id}'>
+            <input type="text" class="form-control mr-2 w-75" value="${title}" >
+            <button type="button" class="btn btn-secondary btn-sm mr-1" onclick="updateTodo('${id}', '${title}')">업데이트</button>
+            <button class="btn btn-warning btn-sm" onclick="showMovie()">취소</button>
+        </form>
+    `);
+
+            // return false; 추가
+            return false;
+        }
+
+        function updateTodo(id, title) {
+            let update =$(`#${id}`).find('input').val()
+            console.log(update)
+            if (update !== '') {
+                $.ajax({
+                type: "POST",
+                url: "/api/memo_update",
+                data: { info_new: update, info_original: title },
+                success: function (response) {
+                    if (response['result'] == 'success') {
+
+                        alert('수정 완료!')
+
+                    } else {
+                        alert('수정 실패ㅠㅠ')
+                    }
+                }
+            });
+            showMovie();
+            } else {
+
+                alert('할 일을 입력해주세요!');
+
+
+                editTodo(id, title)
+            }
+            
+        }
+        function cancelEdit(){
+            return 0
+        }
+
+
+
+
+    </script>
+</head>
+
+
+<body>
+    <!-- 제목 부분 -->
+    <section class="hero is-warning">
+        <div class="hero-body">
+            <div class="container center">
+                <h1 class="title">
+                    마이 페이보릿 무비😆
+                </h1>
+                <h2 class="subtitle">
+                    순위를 매겨봅시다
+                </h2>
+            </div>
+        </div>
+    </section>
+
+
+    <div class="mx-auto sorter-box">
+        <div class="btn-group m-3 mx-auto w-100">
+            <a href="#" class="btn btn-primary" id="sorter-likes" onclick="changeSorter('likes')">좋아요 순으로 정렬</a>
+            <a href="#" class="btn btn-primary" id="sorter-viewers" onclick="changeSorter('viewers')">누적관객수 순으로 정렬</a>
+            <a href="#" class="btn btn-primary" id="sorter-date" onclick="changeSorter('date')">개봉일 순으로 정렬</a>
+        </div>
+    </div>
+    <div class="mx-auto sorter-box">
+        <div class="btn-group m-3 mx-auto w-100" id="diplay_switch">
+            <!-- <a href="#" class="btn btn-primary" id="sorter-likes" onclick="displayTrashMode()" >휴지통보기</a>
+            <a href="#" class="btn btn-primary" id="sorter-viewers" onclick="showMoiveList()">목록으로돌아가기</a> -->
+        </div>
+
+        <div class="mx-auto sorter-box">
+            <span class="d-flex justify-content-end">
+                <div id="trash-mode-box">
+
+                </div>
+        </div>
+    </div>
+    <div class="container mt-5">
+        <h2 class="text-center mb-4">보고싶은 영화 목록</h2>
+
+        <form class="form-inline mb-4">
+            <input id="todo-val" type="text" class="form-control mr-2 w-50" placeholder="영화 제목">
+            <button type="button" class="btn btn-primary" onclick="makeTodo()">영화 추가</button>
+        </form>
+
+
+        <ul id="todo-list" class="list-group">
+
+        </ul>
+    </div>
+
+
+    <div class="movie-list" id="movie-box">
+
+    </div>
+    <script src="https://code.jquery.com/jquery-3.7.1.js"
+        integrity="sha256-eKhayi8LEQwp4NKxN+CfCh+3qOVUtJn3QNZ0TciWLP4=" crossorigin="anonymous"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+</body>
+
+</html>
